@@ -30,7 +30,7 @@ import {
   getWeeklySummaries,
 } from "../../db.js";
 import { requireAuth, isOIDCEnabled } from "../middleware/auth.js";
-import { getPipelineStatus, triggerManualRun } from "../../pipeline.js";
+import { getPipelineStatus, triggerManualRun, triggerManualSummary } from "../../pipeline.js";
 import {
   AppError,
   formatErrorResponse,
@@ -767,6 +767,37 @@ apiRouter.post("/pipeline/run", async (c: Context<any>) => {
     );
   } catch (error) {
     console.error("[API] PipelineRun error:", error);
+    return c.json(formatErrorResponse(error), getErrorStatusCode(error));
+  }
+});
+
+/**
+ * POST /api/summaries/generate - Manually trigger weekly summary generation
+ */
+apiRouter.post("/summaries/generate", async (c: Context<any>) => {
+  if (!checkAuth(c)) return unauthorizedResponse(c);
+
+  try {
+    const result = await triggerManualSummary();
+
+    if (!result.started) {
+      return c.json<ApiResponse<{ started: boolean; reason?: string }>>({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return c.json<ApiResponse<{ started: boolean }>>(
+      {
+        success: true,
+        data: { started: true },
+        timestamp: new Date().toISOString(),
+      },
+      202,
+    );
+  } catch (error) {
+    console.error("[API] GenerateSummary error:", error);
     return c.json(formatErrorResponse(error), getErrorStatusCode(error));
   }
 });

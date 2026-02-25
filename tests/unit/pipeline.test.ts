@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import {
   getPipelineStatus,
   triggerManualRun,
+  triggerManualSummary,
   isPipelineRunning,
   setPipelineRunning,
   setLastRunInfo,
   setCronConfig,
   registerRunFunction,
+  registerSummaryFunction,
 } from "../../src/pipeline.js";
 import type { PipelineStatus, PipelineRunInfo } from "../../src/pipeline.js";
 
@@ -20,6 +22,7 @@ beforeEach(() => {
   setPipelineRunning(false);
   setCronConfig("", false);
   registerRunFunction(null as any);
+  registerSummaryFunction(null as any);
   // Reset lastRun by setting a known state
 });
 
@@ -131,6 +134,28 @@ describe("Pipeline - Manual Trigger", () => {
 
   it("should reject when no run function is registered", async () => {
     const result = await triggerManualRun();
+    expect(result.started).toBe(false);
+    expect(result.reason).toContain("not initialized");
+  });
+});
+
+describe("Pipeline - Manual Summary Trigger", () => {
+  it("should trigger summary when function is registered", async () => {
+    let called = false;
+    registerSummaryFunction(async () => {
+      called = true;
+      return "<div>summary</div>";
+    });
+
+    const result = await triggerManualSummary();
+    expect(result.started).toBe(true);
+    // Wait a tick for the async fire-and-forget
+    await new Promise((r) => setTimeout(r, 10));
+    expect(called).toBe(true);
+  });
+
+  it("should reject when no summary function is registered", async () => {
+    const result = await triggerManualSummary();
     expect(result.started).toBe(false);
     expect(result.reason).toContain("not initialized");
   });

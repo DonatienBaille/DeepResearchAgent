@@ -68,17 +68,39 @@ export const sampleHtmlReport = `
     <strong>TypeScript 5.4</strong> introduces several notable improvements to the type system and developer experience.
     The most significant addition is the <code>NoInfer</code> utility type, which prevents TypeScript from inferring
     types from specific positions in generic function calls. This gives developers more control over type inference
-    behavior in complex generic scenarios.
+    behavior in complex generic scenarios, reducing the need for manual type annotations in library code.
+  </p>
+  <h3>Principales découvertes</h3>
+  <p>
+    The <code>NoInfer</code> utility type is particularly useful for library authors who need to control how
+    TypeScript infers generic type parameters. By wrapping a type parameter position with <code>NoInfer</code>,
+    the compiler will skip that position when performing type inference, forcing users to provide explicit types
+    or relying on other parameter positions for inference. This addresses a long-standing pain point in the
+    TypeScript ecosystem where generic functions would sometimes infer unexpected types.
   </p>
   <p>
     Additionally, TypeScript 5.4 brings improved narrowing in closures, allowing the compiler to better track
-    type refinements across closure boundaries. The release also adds support for <code>Object.groupBy</code>
-    and <code>Map.groupBy</code> static methods with proper type signatures.
+    type refinements across closure boundaries. Previously, type narrowing performed before a closure was created
+    would not be preserved inside the closure, leading to unnecessary type assertions. The new behavior correctly
+    propagates narrowing information into closures, making code more type-safe without additional annotations.
+  </p>
+  <p>
+    The release also adds support for <code>Object.groupBy</code> and <code>Map.groupBy</code> static methods
+    with proper type signatures, aligning with the latest ECMAScript proposals. Performance improvements in the
+    compiler reduce build times by approximately 5-10% for large projects. The team has also improved error
+    messages to be more descriptive and actionable, helping developers diagnose type errors more quickly.
+  </p>
+  <h3>Analyse</h3>
+  <p>
+    These changes collectively represent a maturation of the TypeScript type system, with a focus on developer
+    ergonomics and real-world usage patterns. The <code>NoInfer</code> type in particular shows the team's
+    commitment to supporting the library ecosystem, which is critical for TypeScript's continued adoption.
   </p>
   <p class="sources">
-    <strong>Sources:</strong>
+    <strong>Sources :</strong>
     <a href="https://devblogs.microsoft.com/typescript/announcing-typescript-5-4/" target="_blank">TypeScript Blog</a>,
-    <a href="https://blog.logrocket.com/whats-new-typescript-5-4/" target="_blank">LogRocket</a>
+    <a href="https://blog.logrocket.com/whats-new-typescript-5-4/" target="_blank">LogRocket</a>,
+    <a href="https://www.totaltypescript.com/typescript-5-4" target="_blank">Total TypeScript</a>
   </p>
 </div>
 `.trim();

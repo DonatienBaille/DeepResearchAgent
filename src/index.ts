@@ -20,9 +20,10 @@ import {
   setLastRunInfo,
   setCronConfig,
   registerRunFunction,
+  registerSummaryFunction,
 } from "./pipeline.js";
 
-export { getPipelineStatus, triggerManualRun } from "./pipeline.js";
+export { getPipelineStatus, triggerManualRun, triggerManualSummary } from "./pipeline.js";
 export type { PipelineStatus } from "./pipeline.js";
 
 /**
@@ -257,6 +258,7 @@ async function executeResearchCycle(): Promise<void> {
 export function initializeCron(): void {
   // Register the research cycle function for manual triggers
   registerRunFunction(executeResearchCycle);
+  registerSummaryFunction(generateWeeklySummary);
 
   try {
     console.log(

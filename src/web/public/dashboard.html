@@ -2347,6 +2347,26 @@
               </h1>
               <p class="page-subtitle">Synthèses cross-topics de la semaine</p>
             </div>
+            <button
+              class="btn btn-primary"
+              id="generateSummaryBtn"
+              aria-label="Générer un résumé hebdomadaire"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="6 3 20 12 6 21 6 3" />
+              </svg>
+              Générer maintenant
+            </button>
           </div>
           <div class="card">
             <div
@@ -2451,6 +2471,30 @@
                 aria-hidden="true"
               >
                 <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+              </svg>
+            </button>
+            <button
+              class="btn btn-ghost btn-icon"
+              id="deleteReportModalBtn"
+              aria-label="Supprimer le rapport"
+              style="color: var(--text-danger, #ef4444)"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
               </svg>
             </button>
             <button
@@ -3158,6 +3202,9 @@
               <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();App.toggleBookmark('${report.id}')" aria-label="Ajouter aux favoris">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
               </button>
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();App.deleteReport('${report.id}')" aria-label="Supprimer le rapport" style="color:var(--text-danger,#ef4444)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
             </div>
           </div>
         `;
@@ -3313,6 +3360,22 @@
             isBookmarked ? "Retirer des favoris" : "Ajouter aux favoris",
           );
           btn.classList.toggle("btn-primary", isBookmarked);
+        }
+
+        async function deleteReport(id) {
+          if (!confirm("Supprimer ce rapport ? Cette action est irréversible.")) return;
+          try {
+            await api(`/reports/${id}`, { method: "DELETE" });
+            showToast("Rapport supprimé", "success");
+            closeModal("reportModal");
+            // Refresh current view
+            const activePage = document.querySelector(".page-view.active");
+            if (activePage?.id === "page-dashboard") loadDashboard();
+            else if (activePage?.id === "page-reports") loadReports();
+            else if (activePage?.id === "page-bookmarks") loadBookmarks();
+          } catch {
+            showToast("Erreur lors de la suppression", "error");
+          }
         }
 
         // =============================================
@@ -3673,6 +3736,7 @@
 
           try {
             const summaries = await api("/summaries?limit=20");
+            state._lastSummaries = summaries;
             if (!summaries || !summaries.length) {
               container.innerHTML = renderEmptyState(
                 "Aucun résumé",
@@ -3712,6 +3776,33 @@
           const summaries = state._lastSummaries;
           // Simplified: just show in modal
           showToast("Fonctionnalité en développement", "info");
+        }
+
+        async function handleGenerateSummary() {
+          const btn = document.getElementById("generateSummaryBtn");
+          btn.disabled = true;
+          btn.innerHTML = '<div class="spinner spinner-sm" role="status"></div> Génération…';
+
+          try {
+            const result = await api("/summaries/generate", { method: "POST" });
+            if (result.started) {
+              showToast("Génération du résumé lancée", "success");
+              // Poll until done then refresh
+              setTimeout(async () => {
+                await loadSummaries();
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg> Générer maintenant';
+              }, 10000);
+            } else {
+              showToast(result.reason || "Impossible de lancer la génération", "error");
+              btn.disabled = false;
+              btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg> Générer maintenant';
+            }
+          } catch {
+            showToast("Erreur lors de la génération", "error");
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg> Générer maintenant';
+          }
         }
 
         // =============================================
@@ -4073,6 +4164,18 @@
           document
             .getElementById("runPipelineBtn")
             .addEventListener("click", handleRunPipeline);
+
+          // Delete report from modal
+          document
+            .getElementById("deleteReportModalBtn")
+            .addEventListener("click", () => {
+              if (state.currentReportId) deleteReport(state.currentReportId);
+            });
+
+          // Generate weekly summary
+          document
+            .getElementById("generateSummaryBtn")
+            .addEventListener("click", handleGenerateSummary);
         }
 
         // =============================================
@@ -4081,6 +4184,7 @@
         window.App = {
           navigateTo,
           openReport,
+          deleteReport,
           toggleBookmark,
           removeBookmark,
           toggleTopicActive,
@@ -4092,6 +4196,7 @@
           closeModal,
           handleNotifClick,
           openSummaryModal,
+          handleGenerateSummary,
         };
 
         // =============================================

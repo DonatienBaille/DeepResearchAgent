@@ -142,12 +142,22 @@ export function getPipelineStatus(): PipelineStatus {
 /** Registered research cycle function (set by index.ts at startup) */
 let registeredRunFn: (() => Promise<void>) | null = null;
 
+/** Registered weekly summary function (set by index.ts at startup) */
+let registeredSummaryFn: (() => Promise<string | null>) | null = null;
+
 /**
  * Register the executeResearchCycle function from index.ts
  * This avoids circular imports between api.ts → index.ts → web.ts → api.ts
  */
 export function registerRunFunction(fn: () => Promise<void>): void {
   registeredRunFn = fn;
+}
+
+/**
+ * Register the generateWeeklySummary function from index.ts
+ */
+export function registerSummaryFunction(fn: () => Promise<string | null>): void {
+  registeredSummaryFn = fn;
 }
 
 /**
@@ -169,6 +179,26 @@ export async function triggerManualRun(): Promise<{
   // Fire and forget — runs in background
   registeredRunFn().catch((error) => {
     console.error("[Pipeline] Manual run failed:", error);
+  });
+
+  return { started: true };
+}
+
+/**
+ * Manually trigger a weekly summary generation
+ * Returns the generated HTML or a status message
+ */
+export async function triggerManualSummary(): Promise<{
+  started: boolean;
+  reason?: string;
+}> {
+  if (!registeredSummaryFn) {
+    return { started: false, reason: "Summary generator not initialized" };
+  }
+
+  // Fire and forget — runs in background
+  registeredSummaryFn().catch((error) => {
+    console.error("[Pipeline] Manual summary generation failed:", error);
   });
 
   return { started: true };

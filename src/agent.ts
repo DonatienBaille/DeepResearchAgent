@@ -20,7 +20,7 @@ import {
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 const MAX_ITERATIONS = 3;
-const MIN_WORD_COUNT = 100;
+const MIN_WORD_COUNT = 200;
 const SEARCH_RESULTS_PER_QUERY = 5;
 const SEARCH_TIMEOUT_MS = 30_000;
 
@@ -62,11 +62,11 @@ type ResearchState = typeof ResearchStateAnnotation.State;
 // ============= LLM & Tools Initialization =============
 
 /** Create LLM instance (lazy, allows env vars to be set at runtime) */
-function createLLM(): ChatOpenAI {
+function createLLM(maxTokens = 1500): ChatOpenAI {
   return new ChatOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     modelName: OPENAI_MODEL,
-    maxTokens: 500,
+    maxTokens,
   });
 }
 
@@ -226,7 +226,7 @@ async function synthesisNode(
     };
   }
 
-  const llm = createLLM();
+  const llm = createLLM(2000);
 
   // Format search results for LLM context
   const resultsText = state.search_results
@@ -238,23 +238,27 @@ async function synthesisNode(
 
   const messages: BaseMessage[] = [
     new HumanMessage(
-      `You are a professional technology researcher. Based on the following research results about "${state.topic}", write a clear, informative HTML paragraph (150-300 words) summarizing the key findings.
+      `You are a professional technology researcher writing a comprehensive brief about "${state.topic}". Based on the research results below, write a detailed and well-structured HTML report.
 
-FORMAT YOUR RESPONSE AS VALID HTML:
-- Wrap the main content in <div class="report-item">
-- Use <p> tags for paragraphs
-- Add a <p class="sources"> section with inline <a href="URL" target="_blank">source name</a> links for 2-3 most relevant sources
-- Keep styling minimal but professional
+STRUCTURE YOUR RESPONSE AS VALID HTML:
+- Wrap everything in <div class="report-item">
+- Start with a short <p> executive summary (2-3 sentences) of the most important findings
+- Add an <h3>Principales découvertes</h3> section with 3-5 key findings, each in its own <p> tag. Include specific facts, numbers, and technical details from the sources.
+- Add an <h3>Analyse</h3> section with a <p> analyzing trends, implications, or noteworthy developments
+- End with a <p class="sources"><strong>Sources :</strong> ...</p> section listing all sources as <a href="URL" target="_blank">source name</a> links
+- Use <strong> for emphasis on key terms
 
 RESEARCH RESULTS:
 ${resultsText}
 
 Requirements:
-- Write in HTML only, no markdown
-- Include specific technical details and facts
+- Write in French
+- Write in HTML only, no markdown, no code fences
+- Include specific technical details, numbers, and facts from the sources
 - Cite sources inline when mentioning specific findings
 - Target professional technical audience
-- Minimum 150 words
+- Minimum 300 words, aim for 400-500 words
+- Be informative and insightful, not just a list of links
 
 HTML Response:`,
     ),
