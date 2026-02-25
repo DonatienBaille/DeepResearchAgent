@@ -30,6 +30,7 @@ import {
   getWeeklySummaries,
 } from "../../db.js";
 import { requireAuth, isOIDCEnabled } from "../middleware/auth.js";
+import { getPipelineStatus, triggerManualRun } from "../../pipeline.js";
 import {
   AppError,
   formatErrorResponse,
@@ -716,6 +717,56 @@ apiRouter.get("/summaries", async (c: Context<any>) => {
     });
   } catch (error) {
     console.error("[API] GetWeeklySummaries error:", error);
+    return c.json(formatErrorResponse(error), getErrorStatusCode(error));
+  }
+});
+
+// ============= Pipeline Endpoints =============
+
+/**
+ * GET /api/pipeline/status - Get pipeline running status, last/next run info
+ */
+apiRouter.get("/pipeline/status", (c: Context<any>) => {
+  try {
+    const status = getPipelineStatus();
+    return c.json<ApiResponse<any>>({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[API] PipelineStatus error:", error);
+    return c.json(formatErrorResponse(error), getErrorStatusCode(error));
+  }
+});
+
+/**
+ * POST /api/pipeline/run - Manually trigger a research pipeline run
+ */
+apiRouter.post("/pipeline/run", async (c: Context<any>) => {
+  if (!checkAuth(c)) return unauthorizedResponse(c);
+
+  try {
+    const result = await triggerManualRun();
+
+    if (!result.started) {
+      return c.json<ApiResponse<{ started: boolean; reason?: string }>>({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return c.json<ApiResponse<{ started: boolean }>>(
+      {
+        success: true,
+        data: { started: true },
+        timestamp: new Date().toISOString(),
+      },
+      202,
+    );
+  } catch (error) {
+    console.error("[API] PipelineRun error:", error);
     return c.json(formatErrorResponse(error), getErrorStatusCode(error));
   }
 });

@@ -24,6 +24,17 @@ const app = new Hono<any>();
  * GET /health - Health check endpoint
  * Must be before auth middleware so it's always accessible
  */
+/**
+ * GET /favicon.svg - Serve inline SVG favicon
+ */
+app.get("/favicon.svg", (c: Context<any>) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>`;
+  return c.body(svg, 200, {
+    "Content-Type": "image/svg+xml",
+    "Cache-Control": "public, max-age=604800, immutable",
+  });
+});
+
 app.get("/health", async (c: Context<any>) => {
   try {
     const stats = await getDbStats();

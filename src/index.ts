@@ -14,6 +14,16 @@ import { startWebServer } from "./web.js";
 import { sanitizeErrorForLog } from "./utils/errors.js";
 import { processReportMemory } from "./memory.js";
 import { generateWeeklySummary } from "./summary.js";
+import {
+  isPipelineRunning,
+  setPipelineRunning,
+  setLastRunInfo,
+  setCronConfig,
+  registerRunFunction,
+} from "./pipeline.js";
+
+export { getPipelineStatus, triggerManualRun } from "./pipeline.js";
+export type { PipelineStatus } from "./pipeline.js";
 
 /**
  * Main Orchestration: Cron + Agent + Email
@@ -113,9 +123,19 @@ async function sendResearchEmail(
  * Execute research for all active topics
  */
 async function executeResearchCycle(): Promise<void> {
+  if (isPipelineRunning()) {
+    console.warn("[Pipeline] Research cycle already in progress, skipping");
+    return;
+  }
+
+  setPipelineRunning(true);
+  const startedAt = new Date().toISOString();
+  let topicsProcessed = 0;
+  let reportsGenerated = 0;
+
   try {
     console.log("[Cron] Starting research cycle...");
-    console.log(`[Cron] Timestamp: ${new Date().toISOString()}`);
+    console.log(`[Cron] Timestamp: ${startedAt}`);
 
     const startTime = Date.now();
 
@@ -182,11 +202,37 @@ async function executeResearchCycle(): Promise<void> {
     }
 
     const duration = Date.now() - startTime;
+    topicsProcessed = topics.length;
     console.log(
       `[Cron] Research cycle completed in ${(duration / 1000).toFixed(1)}s`,
     );
+
+    setLastRunInfo({
+      startedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: duration,
+      topicsProcessed,
+      reportsGenerated: reports.length,
+      status:
+        reports.length === topics.length
+          ? "success"
+          : reports.length > 0
+            ? "partial"
+            : "error",
+    });
   } catch (error) {
     console.error("[Cron] Research cycle failed:", error);
+    setLastRunInfo({
+      startedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - new Date(startedAt).getTime(),
+      topicsProcessed,
+      reportsGenerated,
+      status: "error",
+      error: sanitizeErrorForLog(error),
+    });
+  } finally {
+    setPipelineRunning(false);
   }
 }
 
@@ -194,6 +240,9 @@ async function executeResearchCycle(): Promise<void> {
  * Initialize and schedule cron job
  */
 export function initializeCron(): void {
+  // Register the research cycle function for manual triggers
+  registerRunFunction(executeResearchCycle);
+
   try {
     console.log(
       `[Cron] Scheduling research with expression: "${CRON_SCHEDULE}"`,
@@ -223,6 +272,7 @@ export function initializeCron(): void {
     console.log("[Cron] Weekly summary scheduled: Every Sunday at 8 PM");
 
     console.log("[Cron] Cron job initialized successfully");
+    setCronConfig(CRON_SCHEDULE, true);
   } catch (error) {
     console.error("[Cron] Failed to initialize cron job:", error);
     process.exit(1);

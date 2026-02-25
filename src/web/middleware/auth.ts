@@ -1,6 +1,7 @@
 import type { Context, Next } from "hono";
 import type { AuthUser, SessionData } from "../../types.js";
 import { AuthenticationError } from "../../utils/errors.js";
+import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 
 /**
  * Authentik OIDC Authentication Middleware
@@ -14,10 +15,6 @@ import { AuthenticationError } from "../../utils/errors.js";
 
 // Dynamic import for openid-client v6 functions
 let oidcConfig: any = null;
-let pkceState: {
-  codeVerifier: string;
-  nonce: string;
-} | null = null;
 
 /**
  * Initialize OIDC configuration (called once on startup)
@@ -54,8 +51,9 @@ export async function initializeOIDC(): Promise<void> {
 /**
  * Generate authorization URL for login redirect
  * Uses PKCE (S256) for security
+ * Stores state in secure HTTP-only cookies
  */
-export function getAuthorizationUrl(): string {
+export function getAuthorizationUrl(c?: Context): { url: string; cookies: Array<{ name: string; value: string; options: any }> } {
   if (!oidcConfig) {
     throw new AuthenticationError(
       "OIDC not initialized. Check AUTHENTIK_OIDC_DISCOVERY in .env",
@@ -70,9 +68,6 @@ export function getAuthorizationUrl(): string {
     const codeChallenge = openidClient.calculatePKCECodeChallenge(codeVerifier);
     const nonce = openidClient.randomNonce();
 
-    // Store PKCE state (in production, use session store per user)
-    pkceState = { codeVerifier, nonce };
-
     const redirectUri =
       process.env.AUTHENTIK_REDIRECT_URI ||
       "http://localhost:3000/auth/callback";
@@ -86,7 +81,41 @@ export function getAuthorizationUrl(): string {
       nonce,
     });
 
-    return authUrl.href;
+    // Prepare cookies for state persistence
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookies = [
+      {
+        name: "pkce_code_verifier",
+        value: codeVerifier,
+        options: {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: 600, // 10 minutes for login process
+        },
+      },
+      {
+        name: "oidc_nonce",
+        value: nonce,
+        options: {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: 600, // 10 minutes for login process
+        },
+      },
+    ];
+
+    // If context provided, set cookies immediately
+    if (c) {
+      cookies.forEach(cookie => {
+        setCookie(c, cookie.name, cookie.value, cookie.options);
+      });
+    }
+
+    return { url: authUrl.href, cookies };
   } catch (error) {
     console.error("[Auth] Failed to build authorization URL:", error);
     throw new AuthenticationError("Failed to initiate login");
@@ -95,8 +124,9 @@ export function getAuthorizationUrl(): string {
 
 /**
  * Exchange authorization code for tokens
+ * Reads PKCE state from cookies set during login
  */
-export async function exchangeCodeForToken(callbackUrl: string): Promise<any> {
+export async function exchangeCodeForToken(callbackUrl: string, c: Context): Promise<any> {
   if (!oidcConfig) {
     throw new AuthenticationError("OIDC not initialized");
   }
@@ -107,23 +137,36 @@ export async function exchangeCodeForToken(callbackUrl: string): Promise<any> {
       process.env.AUTHENTIK_REDIRECT_URI ||
       "http://localhost:3000/auth/callback";
 
+    // Read PKCE state from cookies (set during login)
+    const codeVerifier = getCookie(c, "pkce_code_verifier");
+    const nonce = getCookie(c, "oidc_nonce");
+
+    if (!codeVerifier || !nonce) {
+      throw new AuthenticationError(
+        "PKCE state not found in session. Please try logging in again.",
+      );
+    }
+
     const tokens = await openidClient.authorizationCodeGrant(
       oidcConfig,
       new URL(callbackUrl),
       {
-        pkceCodeVerifier: pkceState?.codeVerifier,
-        expectedNonce: pkceState?.nonce,
+        pkceCodeVerifier: codeVerifier,
+        expectedNonce: nonce,
         idTokenExpected: true,
       },
     );
 
-    // Clear PKCE state after use
-    pkceState = null;
+    // Clear PKCE state cookies after successful exchange
+    deleteCookie(c, "pkce_code_verifier", { path: "/" });
+    deleteCookie(c, "oidc_nonce", { path: "/" });
 
     return tokens;
   } catch (error) {
     console.error("[Auth] Token exchange failed:", error);
-    pkceState = null;
+    // Clear state cookies on error too
+    deleteCookie(c, "pkce_code_verifier", { path: "/" });
+    deleteCookie(c, "oidc_nonce", { path: "/" });
     throw new AuthenticationError("Failed to exchange code for tokens");
   }
 }

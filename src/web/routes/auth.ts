@@ -26,6 +26,7 @@ authRouter.get("/login", (c: Context<any>) => {
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
           <title>Connexion — Deep Research Agent</title>
           <style>
             *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,7 +122,7 @@ authRouter.get("/login", (c: Context<any>) => {
       `);
     }
 
-    const authUrl = getAuthorizationUrl();
+    const { url: authUrl } = getAuthorizationUrl(c);
     return c.redirect(authUrl);
   } catch (error) {
     console.error("[Auth Route] Login redirect failed:", error);
@@ -153,8 +154,8 @@ authRouter.get("/callback", async (c: Context<any>) => {
     // Build full callback URL for token exchange
     const callbackUrl = c.req.url;
 
-    // Exchange code for tokens
-    const tokens = await exchangeCodeForToken(callbackUrl);
+    // Exchange code for tokens (pass context for PKCE state recovery)
+    const tokens = await exchangeCodeForToken(callbackUrl, c);
 
     const idToken = tokens.id_token;
     const accessToken = tokens.access_token;
