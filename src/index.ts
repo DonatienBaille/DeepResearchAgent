@@ -12,6 +12,7 @@ import {
 } from "./db.js";
 import { startWebServer } from "./web.js";
 import { sanitizeErrorForLog } from "./utils/errors.js";
+import { markdownToEmailHtml } from "./utils/markdown.js";
 import { processReportMemory } from "./memory.js";
 import { generateWeeklySummary } from "./summary.js";
 import {
@@ -104,7 +105,7 @@ async function sendResearchEmail(
   <p>Researched topics: <strong>${topics.length}</strong></p>
 
   <div class="reports">
-    ${reports.map((report) => `<div class="report">${report}</div>`).join("\n")}
+    ${reports.map((report) => `<div class="report">${markdownToEmailHtml(report)}</div>`).join("\n")}
   </div>
 
   <div class="footer">
