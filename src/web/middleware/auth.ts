@@ -72,6 +72,9 @@ export function getAuthorizationUrl(c?: Context): { url: string; cookies: Array<
       process.env.AUTHENTIK_REDIRECT_URI ||
       "http://localhost:3000/auth/callback";
 
+    // Generate a random state for CSRF protection
+    const state = openidClient.randomState();
+
     // Build authorization URL
     const authUrl = openidClient.buildAuthorizationUrl(oidcConfig, {
       redirect_uri: redirectUri,
@@ -79,32 +82,33 @@ export function getAuthorizationUrl(c?: Context): { url: string; cookies: Array<
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
       nonce,
+      state,
     });
 
     // Prepare cookies for state persistence
     const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "Lax" as const,
+      path: "/",
+      maxAge: 600, // 10 minutes for login process
+    };
     const cookies = [
       {
         name: "pkce_code_verifier",
         value: codeVerifier,
-        options: {
-          httpOnly: true,
-          secure: isProduction,
-          sameSite: "Lax",
-          path: "/",
-          maxAge: 600, // 10 minutes for login process
-        },
+        options: cookieOptions,
       },
       {
         name: "oidc_nonce",
         value: nonce,
-        options: {
-          httpOnly: true,
-          secure: isProduction,
-          sameSite: "Lax",
-          path: "/",
-          maxAge: 600, // 10 minutes for login process
-        },
+        options: cookieOptions,
+      },
+      {
+        name: "oidc_state",
+        value: state,
+        options: cookieOptions,
       },
     ];
 
@@ -137,13 +141,14 @@ export async function exchangeCodeForToken(callbackUrl: string, c: Context): Pro
       process.env.AUTHENTIK_REDIRECT_URI ||
       "http://localhost:3000/auth/callback";
 
-    // Read PKCE state from cookies (set during login)
+    // Read PKCE + OIDC state from cookies (set during login)
     const codeVerifier = getCookie(c, "pkce_code_verifier");
     const nonce = getCookie(c, "oidc_nonce");
+    const expectedState = getCookie(c, "oidc_state");
 
-    if (!codeVerifier || !nonce) {
+    if (!codeVerifier || !nonce || !expectedState) {
       throw new AuthenticationError(
-        "PKCE state not found in session. Please try logging in again.",
+        "OIDC session state not found. Please try logging in again.",
       );
     }
 
@@ -153,13 +158,15 @@ export async function exchangeCodeForToken(callbackUrl: string, c: Context): Pro
       {
         pkceCodeVerifier: codeVerifier,
         expectedNonce: nonce,
+        expectedState,
         idTokenExpected: true,
       },
     );
 
-    // Clear PKCE state cookies after successful exchange
+    // Clear OIDC state cookies after successful exchange
     deleteCookie(c, "pkce_code_verifier", { path: "/" });
     deleteCookie(c, "oidc_nonce", { path: "/" });
+    deleteCookie(c, "oidc_state", { path: "/" });
 
     return tokens;
   } catch (error) {
@@ -167,6 +174,7 @@ export async function exchangeCodeForToken(callbackUrl: string, c: Context): Pro
     // Clear state cookies on error too
     deleteCookie(c, "pkce_code_verifier", { path: "/" });
     deleteCookie(c, "oidc_nonce", { path: "/" });
+    deleteCookie(c, "oidc_state", { path: "/" });
     throw new AuthenticationError("Failed to exchange code for tokens");
   }
 }
