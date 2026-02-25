@@ -2585,6 +2585,12 @@
               >
             </label>
           </div>
+          <div class="form-group mt-4">
+            <label class="form-label">Catégories</label>
+            <div id="topicCategoriesList" class="flex flex-wrap gap-2">
+              <!-- Checkboxes will be injected here -->
+            </div>
+          </div>
         </form>
         <div class="modal-footer">
           <button
@@ -3455,6 +3461,23 @@
           }
         }
 
+        function renderTopicCategoriesSelector(selectedIds = []) {
+          const container = document.getElementById("topicCategoriesList");
+          if (!state.categories || !state.categories.length) {
+            container.innerHTML = '<span class="text-sm text-muted">Aucune catégorie disponible.</span>';
+            return;
+          }
+          container.innerHTML = state.categories.map(c => {
+            const isChecked = selectedIds.includes(c.id);
+            return `
+              <label class="category-checkbox" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--radius-full);background:var(--bg-tertiary);cursor:pointer;font-size:0.8125rem;">
+                <input type="checkbox" value="${c.id}" ${isChecked ? 'checked' : ''} style="accent-color:${c.color}">
+                <span style="color:${c.color}">${escapeHtml(c.name)}</span>
+              </label>
+            `;
+          }).join('');
+        }
+
         function editTopic(id) {
           const topic = state.topics.find((t) => t.id === id);
           if (!topic) return;
@@ -3464,6 +3487,10 @@
           document.getElementById("topicNameInput").value = topic.name;
           document.getElementById("topicActiveInput").checked = topic.active;
           document.getElementById("saveTopicBtn").textContent = "Mettre à jour";
+          
+          const selectedCategoryIds = (topic.categories || []).map(c => c.id);
+          renderTopicCategoriesSelector(selectedCategoryIds);
+          
           openModal("topicModal");
           document.getElementById("topicNameInput").focus();
         }
@@ -3475,6 +3502,9 @@
           document.getElementById("topicNameInput").value = "";
           document.getElementById("topicActiveInput").checked = true;
           document.getElementById("saveTopicBtn").textContent = "Créer";
+          
+          renderTopicCategoriesSelector([]);
+          
           openModal("topicModal");
           document.getElementById("topicNameInput").focus();
         }
@@ -3482,6 +3512,11 @@
         async function saveTopic() {
           const name = document.getElementById("topicNameInput").value.trim();
           const active = document.getElementById("topicActiveInput").checked;
+          
+          const selectedCategoryIds = Array.from(
+            document.querySelectorAll("#topicCategoriesList input[type='checkbox']:checked")
+          ).map(cb => cb.value);
+
           if (!name) {
             showToast("Le nom du topic est requis.", "error");
             document.getElementById("topicNameInput").focus();
@@ -3489,19 +3524,47 @@
           }
 
           try {
-            if (state.editingTopicId) {
-              await api(`/topics/${state.editingTopicId}`, {
+            let topicId = state.editingTopicId;
+            if (topicId) {
+              await api(`/topics/${topicId}`, {
                 method: "PATCH",
                 body: JSON.stringify({ name, active }),
               });
               showToast("Topic mis à jour", "success");
             } else {
-              await api("/topics", {
+              const newTopic = await api("/topics", {
                 method: "POST",
                 body: JSON.stringify({ name }),
               });
+              topicId = newTopic.id;
+              if (!active) {
+                await api(`/topics/${topicId}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ active: false }),
+                });
+              }
               showToast("Topic créé", "success");
             }
+
+            // Update categories
+            const currentTopic = state.topics.find(t => t.id === topicId);
+            const currentCategoryIds = currentTopic ? (currentTopic.categories || []).map(c => c.id) : [];
+            
+            const toAdd = selectedCategoryIds.filter(id => !currentCategoryIds.includes(id));
+            const toRemove = currentCategoryIds.filter(id => !selectedCategoryIds.includes(id));
+
+            for (const id of toAdd) {
+              await api(`/topics/${topicId}/categories`, {
+                method: "POST",
+                body: JSON.stringify({ category_id: id })
+              });
+            }
+            for (const id of toRemove) {
+              await api(`/topics/${topicId}/categories/${id}`, {
+                method: "DELETE"
+              });
+            }
+
             closeModal("topicModal");
             loadTopics();
           } catch {

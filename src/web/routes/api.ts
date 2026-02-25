@@ -84,9 +84,18 @@ function unauthorizedResponse(c: Context<any>) {
 apiRouter.get("/topics", async (c: Context<any>) => {
   try {
     const topics = await getTopics();
+    
+    // Fetch categories for each topic
+    const topicsWithCategories = await Promise.all(
+      topics.map(async (topic) => {
+        const categories = await getTopicCategories(topic.id);
+        return { ...topic, categories };
+      })
+    );
+
     return c.json<ApiResponse<Topic[]>>({
       success: true,
-      data: topics,
+      data: topicsWithCategories,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -101,9 +110,18 @@ apiRouter.get("/topics", async (c: Context<any>) => {
 apiRouter.get("/topics/active", async (c: Context<any>) => {
   try {
     const topics = await getActiveTopics();
+    
+    // Fetch categories for each topic
+    const topicsWithCategories = await Promise.all(
+      topics.map(async (topic) => {
+        const categories = await getTopicCategories(topic.id);
+        return { ...topic, categories };
+      })
+    );
+
     return c.json<ApiResponse<Topic[]>>({
       success: true,
-      data: topics,
+      data: topicsWithCategories,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -131,9 +149,11 @@ apiRouter.get("/topics/:id", async (c: Context<any>) => {
       );
     }
 
+    const categories = await getTopicCategories(topic.id);
+
     return c.json<ApiResponse<Topic>>({
       success: true,
-      data: topic,
+      data: { ...topic, categories },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
