@@ -50,7 +50,7 @@ Deep Research Agent est un système de veille technologique 100% local et conten
 
 - [Bun](https://bun.sh/) 1.0+ (ou Node.js 18+)
 - [Docker](https://www.docker.com/) & Docker Compose (pour le déploiement conteneurisé)
-- Clé API [OpenAI](https://platform.openai.com/) (gpt-4o-mini)
+- Clé API [OpenAI](https://platform.openai.com/) (gpt-5-mini)
 - Clé API [Tavily](https://tavily.com/) (recherche web)
 
 ### Installation
@@ -74,7 +74,7 @@ Variables requises :
 ```env
 # LLM
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini          # Optionnel, défaut: gpt-4o-mini
+OPENAI_MODEL=gpt-5-mini          # Optionnel, défaut: gpt-5-mini
 
 # Recherche Web
 TAVILY_API_KEY=tvly-...
@@ -214,7 +214,7 @@ src/
 | Runtime          | [Bun](https://bun.sh/)                                                                            |
 | Langage          | TypeScript (strict mode)                                                                          |
 | Agent IA         | [LangGraph](https://langchain-ai.github.io/langgraphjs/) + [LangChain](https://js.langchain.com/) |
-| LLM              | OpenAI gpt-4o-mini                                                                                |
+| LLM              | OpenAI gpt-5-mini                                                                                 |
 | Recherche web    | [Tavily](https://tavily.com/)                                                                     |
 | Serveur web      | [Hono](https://hono.dev/)                                                                         |
 | Base de données  | SQLite via [sql.js](https://sql.js.org/)                                                          |
@@ -406,7 +406,7 @@ Vérifiez que `TAVILY_API_KEY` est valide et que votre quota n'est pas épuisé 
 <details>
 <summary><strong>Agent runs but report is empty</strong></summary>
 
-Vérifiez la validité de `OPENAI_API_KEY` et que le modèle gpt-4o-mini est accessible. Consultez les logs pour les messages d'erreur LLM.
+Vérifiez la validité de `OPENAI_API_KEY` et que le modèle gpt-5-mini est accessible. Consultez les logs pour les messages d'erreur LLM.
 
 </details>
 

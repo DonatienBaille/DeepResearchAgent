@@ -13,7 +13,7 @@ import { sanitizeErrorForLog } from "./utils/errors.js";
  * Synthesizes key findings across all active topics for the past week
  */
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 
 /**
  * Get the ISO date string for the start of the current week (Monday)
@@ -99,7 +99,6 @@ export async function generateWeeklySummary(): Promise<string | null> {
     const llm = new ChatOpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       modelName: OPENAI_MODEL,
-      temperature: 0.5,
       maxTokens: 1000,
     });
 
@@ -132,12 +131,7 @@ HTML Response:`,
 
     // Save to database
     const topicsCovered = Object.keys(reportsByTopic);
-    await saveWeeklySummary(
-      weekStart,
-      weekEnd,
-      htmlContent,
-      topicsCovered,
-    );
+    await saveWeeklySummary(weekStart, weekEnd, htmlContent, topicsCovered);
 
     // Create notification for the summary
     await createNotification(

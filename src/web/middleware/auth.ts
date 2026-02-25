@@ -32,13 +32,24 @@ export async function initializeOIDC(): Promise<void> {
 
     const openidClient = await import("openid-client");
     const issuerUrl = new URL(discoveryUrl);
+    const clientId = process.env.AUTHENTIK_CLIENT_ID || "";
+    const clientSecret = process.env.AUTHENTIK_CLIENT_SECRET;
 
-    // openid-client v6: use discovery() to get server config
-    oidcConfig = await openidClient.discovery(
-      issuerUrl,
-      process.env.AUTHENTIK_CLIENT_ID || "",
-      process.env.AUTHENTIK_CLIENT_SECRET || "",
-    );
+    // openid-client v6: discovery(server, clientId, metadata|secret, clientAuth)
+    // Explicitly use ClientSecretPost for Authentik compatibility
+    oidcConfig = clientSecret
+      ? await openidClient.discovery(
+          issuerUrl,
+          clientId,
+          clientSecret,
+          openidClient.ClientSecretPost(clientSecret),
+        )
+      : await openidClient.discovery(
+          issuerUrl,
+          clientId,
+          undefined,
+          openidClient.None(),
+        );
 
     console.log("[Auth] OIDC client initialized successfully");
   } catch (error) {

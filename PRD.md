@@ -107,7 +107,7 @@ Build a fully local, containerized automated research surveillance system ("Veil
 | -------------------- | --------------------------------- | -------------------------------------------------------- |
 | **Runtime**          | Bun                               | Native TypeScript, simpler packaging, better perf        |
 | **LLM/AI**           | @langchain/langgraph              | State machine for multi-step research, structured output |
-| **LLM Model**        | OpenAI gpt-4o-mini                | Balance: cost & quality for planning/synthesis           |
+| **LLM Model**        | OpenAI gpt-5-mini                 | Balance: cost & quality for planning/synthesis           |
 | **Search**           | Tavily (@langchain/community)     | Structured JSON results, better for AI synthesis         |
 | **Web Framework**    | Hono                              | Lightweight, TypeScript, optimized for Bun               |
 | **Database**         | SQLite + sql.js                   | Pure JS SQLite, cross-platform, async-compatible         |
@@ -256,8 +256,7 @@ interface ResearchState {
 
 **LLM Config**:
 
-- Model: gpt-4o-mini
-- Temperature: 0.5 (balanced creativity + consistency)
+- Model: gpt-5-mini
 - Max tokens: 500 per call
 
 ---
@@ -421,7 +420,7 @@ docker-compose logs -f        # Watch logs
 - [ ] Authentik instance configured + app registered
 - [ ] SMTP credentials valid + tested
 - [ ] Tavily API key active
-- [ ] OpenAI API key active with gpt-4o-mini access
+- [ ] OpenAI API key active with gpt-5-mini access
 - [ ] sujets.json seeded with initial topics
 - [ ] .env file loaded with all required secrets
 - [ ] research.db created + schema initialized

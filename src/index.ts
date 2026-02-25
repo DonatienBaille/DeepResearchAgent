@@ -44,7 +44,6 @@ async function sendResearchEmail(
   try {
     const smtpHost = process.env.SMTP_HOST;
     const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-    const smtpSecure = process.env.SMTP_SECURE === "true";
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
     const smtpFrom = process.env.SMTP_FROM || "research-agent@example.com";
@@ -57,6 +56,13 @@ async function sendResearchEmail(
       return;
     }
 
+    // Port 465 = implicit TLS (secure: true)
+    // Port 587 = STARTTLS (secure: false, upgraded after connect)
+    // Allow explicit override via SMTP_SECURE, otherwise auto-detect from port
+    const smtpSecure = process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE === "true"
+      : smtpPort === 465;
+
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
@@ -64,6 +70,10 @@ async function sendResearchEmail(
       auth: {
         user: smtpUser,
         pass: smtpPass,
+      },
+      tls: {
+        // Allow self-signed certs for self-hosted SMTP (e.g. behind reverse proxy)
+        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== "false",
       },
     });
 
@@ -160,6 +170,11 @@ async function executeResearchCycle(): Promise<void> {
 
         // Run the agent
         const htmlReport = await runDeepResearchAgent(topic.name);
+
+        if (!htmlReport) {
+          console.warn(`[Cron] ✗ No report generated for "${topic.name}"`);
+          continue;
+        }
 
         // Save to database
         const savedReport = await saveReport(topic.name, htmlReport, undefined);

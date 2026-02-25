@@ -18,7 +18,7 @@ import {
 
 // ============= Configuration =============
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 const MAX_ITERATIONS = 3;
 const MIN_WORD_COUNT = 100;
 const SEARCH_RESULTS_PER_QUERY = 5;
@@ -66,7 +66,6 @@ function createLLM(): ChatOpenAI {
   return new ChatOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     modelName: OPENAI_MODEL,
-    temperature: 0.5,
     maxTokens: 500,
   });
 }

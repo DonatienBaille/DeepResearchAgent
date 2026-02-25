@@ -22,7 +22,7 @@ Système automatisé de veille technologique qui :
 | Runtime         | **Bun**                                 | TypeScript natif, test runner intégré (`bun test`) |
 | Web             | **Hono**                                | Framework léger, optimisé Bun, port 3000           |
 | Base de données | **SQLite** via **sql.js**               | Pure JS, async-compatible, fichier `research.db`   |
-| Agent IA        | **LangGraph** + **OpenAI gpt-4o-mini**  | Workflow 3 nœuds : Planner → Search → Synthesis    |
+| Agent IA        | **LangGraph** + **OpenAI gpt-5-mini**   | Workflow 3 nœuds : Planner → Search → Synthesis    |
 | Recherche       | **Tavily** (`TavilySearchAPIRetriever`) | Résultats JSON structurés                          |
 | Auth            | **openid-client v6** (fonctionnel)      | OIDC avec Authentik, PKCE intégré                  |
 | Scheduling      | **node-cron**                           | Par défaut : 9h quotidien                          |
@@ -109,7 +109,7 @@ bun run build                # Production build → dist/
 - **Boucle** : Si synthèse < 100 mots, retour au Planner (max 3 itérations)
 - **Export principal** : `runDeepResearchAgent(topic: string): Promise<string>`
 - **Lazy init** : LLM et retriever créés au premier appel
-- **Config** : `OPENAI_MODEL` (défaut: `gpt-4o-mini`), temperature 0.5, max tokens 500
+- **Config** : `OPENAI_MODEL` (défaut: `gpt-5-mini`), max tokens 500
 
 ### 5.3 `db.ts` — Couche base de données
 
@@ -269,7 +269,7 @@ CREATE INDEX idx_reports_created ON reports(created_at DESC);
 | Variable                   | Requis | Défaut                                | Description                                         |
 | -------------------------- | ------ | ------------------------------------- | --------------------------------------------------- |
 | `OPENAI_API_KEY`           | Oui    | —                                     | Clé API OpenAI                                      |
-| `OPENAI_MODEL`             | Non    | `gpt-4o-mini`                         | Modèle LLM                                          |
+| `OPENAI_MODEL`             | Non    | `gpt-5-mini`                          | Modèle LLM                                          |
 | `TAVILY_API_KEY`           | Oui    | —                                     | Clé API Tavily (recherche web)                      |
 | `DATABASE_PATH`            | Non    | `./research.db`                       | Chemin fichier SQLite (`:memory:` pour tests)       |
 | `PORT`                     | Non    | `3000`                                | Port du serveur web                                 |
