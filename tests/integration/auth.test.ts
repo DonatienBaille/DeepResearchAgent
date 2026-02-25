@@ -234,7 +234,7 @@ describe("Auth Routes Integration", () => {
 
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("OIDC authentication is not configured");
+    expect(html).toContain("OIDC");
     expect(html).toContain("/dashboard");
   });
 

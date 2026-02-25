@@ -117,6 +117,8 @@ describe("Database - Topics CRUD", () => {
 
   it("should update topic name", async () => {
     const created = await createTopic("Original");
+    // Ensure at least 1ms passes so updated_at differs
+    await new Promise((resolve) => setTimeout(resolve, 5));
     const updated = await updateTopic(created.id, "Renamed", undefined);
 
     expect(updated.name).toBe("Renamed");
