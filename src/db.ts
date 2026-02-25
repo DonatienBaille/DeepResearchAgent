@@ -1095,6 +1095,25 @@ export async function saveWeeklySummary(
   };
 }
 
+export async function getWeeklySummaryById(
+  id: string,
+): Promise<WeeklySummary | undefined> {
+  const database = await getDb();
+  return queryOne<WeeklySummary>(
+    database,
+    "SELECT id, week_start, week_end, html_content, topics_covered, created_at FROM weekly_summaries WHERE id = ?",
+    [id],
+  );
+}
+
+export async function deleteWeeklySummary(id: string): Promise<boolean> {
+  const database = await getDb();
+  const summary = await getWeeklySummaryById(id);
+  if (!summary) return false;
+  execute(database, "DELETE FROM weekly_summaries WHERE id = ?", [id]);
+  return true;
+}
+
 /**
  * Get database statistics
  */

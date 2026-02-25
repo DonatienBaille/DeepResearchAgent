@@ -104,21 +104,30 @@ export async function generateWeeklySummary(): Promise<string | null> {
 
     const response = await llm.invoke([
       new HumanMessage(
-        `You are a technology research analyst. Create a professional weekly synthesis summarizing the key highlights across all research topics from this week.
+        `Tu es le rédacteur en chef d'une newsletter de veille technologique très pointue, lue par des experts IT.
+Ton rôle est de prendre les notes de recherche brutes de la semaine et de les transformer en un résumé hebdomadaire clair, professionnel et scannable.
 
-WEEKLY RESEARCH DATA:
+RÈGLES DE RÉDACTION :
+1. Rédige l'intégralité du résumé en français, avec un ton neutre, professionnel et direct.
+2. Organise le contenu par sujet. Utilise des titres ### pour chaque technologie ou thème.
+3. Synthétise les informations sous forme de bullet points (- ) de 2 à 3 lignes maximum par point. Pas de longs blocs de texte.
+4. Intègre systématiquement les liens sources quand ils sont disponibles.
+5. S'il est indiqué qu'il n'y a rien de nouveau pour un sujet précis, ignore-le complètement (ne crée pas de section vide).
+6. Rédige une très courte introduction chaleureuse et une brève conclusion.
+7. Utilise uniquement le formatage Markdown.
+
+DONNÉES DE RECHERCHE DE LA SEMAINE :
 ${topicSummaries}
 
-FORMAT AS VALID HTML:
-- Start with <div class="weekly-summary">
-- Add an <h2> with the week range: "${weekStart} to ${weekEnd}"
-- For each topic with notable findings, add an <h3> with the topic name and a <p> summarizing key points
-- End with a "Cross-Topic Insights" section highlighting connections or overarching trends
-- Add a <p class="summary-meta"> at the end with total reports count
-- Keep it concise but informative (300-500 words total)
-- Use professional tone suitable for a tech team
+FORMAT MARKDOWN :
+- Commence par un titre ## avec la plage de la semaine : "Semaine du ${weekStart} au ${weekEnd}"
+- Ajoute un court paragraphe d'introduction chaleureuse
+- Pour chaque sujet avec des découvertes notables, ajoute un ### avec le nom du sujet et des bullet points résumant les points clés
+- Termine avec une section ### Tendances transversales mettant en avant les connexions ou tendances globales
+- Ajoute une ligne en italique à la fin avec le nombre total de rapports (${reports.length} rapports)
+- Vise 300-500 mots au total, concis mais informatif
 
-HTML Response:`,
+Réponse Markdown :`,
       ),
     ]);
 

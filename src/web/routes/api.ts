@@ -28,6 +28,8 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   getWeeklySummaries,
+  getWeeklySummaryById,
+  deleteWeeklySummary,
 } from "../../db.js";
 import { requireAuth, isOIDCEnabled } from "../middleware/auth.js";
 import { getPipelineStatus, triggerManualRun, triggerManualSummary } from "../../pipeline.js";
@@ -737,6 +739,58 @@ apiRouter.get("/summaries", async (c: Context<any>) => {
     });
   } catch (error) {
     console.error("[API] GetWeeklySummaries error:", error);
+    return c.json(formatErrorResponse(error), getErrorStatusCode(error));
+  }
+});
+
+/**
+ * GET /api/summaries/:id - Get a single weekly summary by ID
+ */
+apiRouter.get("/summaries/:id", async (c: Context<any>) => {
+  if (!checkAuth(c)) return unauthorizedResponse(c);
+
+  try {
+    const id = c.req.param("id");
+    const summary = await getWeeklySummaryById(id);
+    if (!summary) {
+      return c.json(
+        { success: false, error: "Summary not found", timestamp: new Date().toISOString() },
+        404,
+      );
+    }
+    return c.json<ApiResponse<any>>({
+      success: true,
+      data: summary,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[API] GetWeeklySummaryById error:", error);
+    return c.json(formatErrorResponse(error), getErrorStatusCode(error));
+  }
+});
+
+/**
+ * DELETE /api/summaries/:id - Delete a weekly summary
+ */
+apiRouter.delete("/summaries/:id", async (c: Context<any>) => {
+  if (!checkAuth(c)) return unauthorizedResponse(c);
+
+  try {
+    const id = c.req.param("id");
+    const deleted = await deleteWeeklySummary(id);
+    if (!deleted) {
+      return c.json(
+        { success: false, error: "Summary not found", timestamp: new Date().toISOString() },
+        404,
+      );
+    }
+    return c.json<ApiResponse<{ deleted: boolean }>>({
+      success: true,
+      data: { deleted: true },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[API] DeleteWeeklySummary error:", error);
     return c.json(formatErrorResponse(error), getErrorStatusCode(error));
   }
 });

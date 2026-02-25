@@ -95,14 +95,21 @@ async function plannerNode(
 
   const messages: BaseMessage[] = [
     new HumanMessage(
-      `You are a research planning expert. Given a technology topic, generate 4-5 specific, actionable search queries that would help compile a comprehensive technical brief.${feedbackContext}
+      `Tu es un expert en veille technologique et un chercheur d'informations technique de haut niveau.
+Ta mission est de générer des requêtes de recherche ciblées pour trouver les actualités les plus récentes et pertinentes sur un sujet donné.
 
-Topic: "${state.topic}"
+RÈGLES DE RECHERCHE :
+1. Cible uniquement des informations publiées dans les 30 derniers jours (mises à jour majeures, nouvelles releases, articles de fond pertinents, débats techniques).
+2. Ignore les tutoriels pour débutants, les articles marketing génériques et les contenus de type "Qu'est-ce que [Sujet] ?".
+3. Génère des requêtes qui ciblent des sources fiables (blogs officiels, GitHub, Hacker News, Reddit technique, médias tech réputés).
+4. Si le sujet est vaste, décompose-le en sous-thèmes spécifiques.${feedbackContext}
 
-Return ONLY a JSON array of strings (search queries), no other text.
-Example: ["TypeScript 5.4 new features", "TypeScript 5.4 breaking changes", "TypeScript 5.4 performance"]
+Sujet : "${state.topic}"
 
-Search Queries (JSON array):`,
+Retourne UNIQUEMENT un tableau JSON de chaînes (requêtes de recherche), aucun autre texte.
+Exemple : ["TypeScript 5.4 new features 2024", "TypeScript 5.4 breaking changes", "TypeScript 5.4 performance benchmarks"]
+
+Requêtes de recherche (tableau JSON) :`,
     ),
   ];
 
@@ -238,29 +245,35 @@ async function synthesisNode(
 
   const messages: BaseMessage[] = [
     new HumanMessage(
-      `You are a professional technology researcher writing a comprehensive brief about "${state.topic}". Based on the research results below, write a detailed and well-structured HTML report.
+      `Tu es un expert en veille technologique et un chercheur d'informations technique de haut niveau.
+Ton rôle est de synthétiser les résultats de recherche ci-dessous en un rapport professionnel sur "${state.topic}".
 
-STRUCTURE YOUR RESPONSE AS VALID HTML:
-- Wrap everything in <div class="report-item">
-- Start with a short <p> executive summary (2-3 sentences) of the most important findings
-- Add an <h3>Principales découvertes</h3> section with 3-5 key findings, each in its own <p> tag. Include specific facts, numbers, and technical details from the sources.
-- Add an <h3>Analyse</h3> section with a <p> analyzing trends, implications, or noteworthy developments
-- End with a <p class="sources"><strong>Sources :</strong> ...</p> section listing all sources as <a href="URL" target="_blank">source name</a> links
-- Use <strong> for emphasis on key terms
+RÈGLES DE RÉDACTION :
+1. Rédige l'intégralité du rapport en français, avec un ton neutre, professionnel et direct.
+2. Ignore les tutoriels pour débutants, les articles marketing génériques et les contenus de type "Qu'est-ce que [Sujet] ?".
+3. Si les résultats ne contiennent rien de pertinent ou de nouveau, dis-le clairement. N'invente pas d'informations et ne recycle pas de vieilles actualités.
+4. Intègre systématiquement les liens sources (URL) fournis dans les résultats.
 
-RESEARCH RESULTS:
+FORMAT DE SORTIE MARKDOWN :
+- Commence par un court résumé exécutif (2-3 phrases) des découvertes les plus importantes
+- Pour chaque information pertinente, ajoute un titre ### avec le titre de l'actualité, suivi d'un résumé concis (2-3 phrases) expliquant pourquoi c'est important, avec des faits, chiffres et détails techniques des sources.
+- Ajoute une section ### Analyse avec un paragraphe analysant les tendances, implications ou développements notables
+- Termine avec une section **Sources :** listant toutes les sources comme liens [nom de la source](URL)
+- Utilise **gras** pour mettre en valeur les termes clés
+
+RÉSULTATS DE RECHERCHE :
 ${resultsText}
 
-Requirements:
-- Write in French
-- Write in HTML only, no markdown, no code fences
-- Include specific technical details, numbers, and facts from the sources
-- Cite sources inline when mentioning specific findings
-- Target professional technical audience
-- Minimum 300 words, aim for 400-500 words
-- Be informative and insightful, not just a list of links
+Exigences :
+- Rédige en français uniquement
+- Markdown uniquement, pas de HTML, pas de blocs de code
+- Inclus des détails techniques spécifiques, chiffres et faits des sources
+- Cite les sources en ligne quand tu mentionnes des découvertes spécifiques
+- Cible un public technique professionnel (experts IT)
+- Minimum 300 mots, vise 400-500 mots
+- Sois informatif et perspicace, pas juste une liste de liens
 
-HTML Response:`,
+Réponse Markdown :`,
     ),
   ];
 
@@ -396,22 +409,12 @@ function generateFallbackReport(
   topic: string,
   results: SearchResult[],
 ): string {
-  const sourcesHtml = results
+  const sourcesList = results
     .slice(0, 3)
-    .map(
-      (r) =>
-        `<a href="${escapeAttr(r.url)}" target="_blank">${escapeHtml(r.title)}</a>`,
-    )
-    .join(", ");
+    .map((r) => `- [${r.title}](${r.url})`)
+    .join("\n");
 
-  return `
-<div class="report-item">
-  <p>
-    Research conducted on topic: <strong>${escapeHtml(topic)}</strong>.
-    ${results.length} relevant sources were identified and compiled below.
-  </p>
-  ${sourcesHtml ? `<p class="sources"><strong>Sources:</strong> ${sourcesHtml}</p>` : ""}
-</div>`.trim();
+  return `Recherche effectu\u00e9e sur le sujet : **${topic}**. ${results.length} sources pertinentes ont \u00e9t\u00e9 identifi\u00e9es.\n\n${sourcesList ? `**Sources :**\n${sourcesList}` : ""}`.trim();
 }
 
 /**
@@ -419,15 +422,7 @@ function generateFallbackReport(
  */
 function generateErrorReport(topic: string, error: unknown): string {
   const errorMsg = error instanceof Error ? error.message : String(error);
-  return `
-<div class="report-item error">
-  <p>
-    Research for <strong>${escapeHtml(topic)}</strong> encountered an error.
-  </p>
-  <p class="error-details">
-    Error: ${escapeHtml(sanitizeErrorForLog(errorMsg))}
-  </p>
-</div>`.trim();
+  return `> **Erreur** : La recherche pour **${escapeHtml(topic)}** a rencontr\u00e9 une erreur.\n>\n> ${escapeHtml(sanitizeErrorForLog(errorMsg))}`.trim();
 }
 
 // ============= HTML Utilities =============
@@ -442,16 +437,6 @@ function escapeHtml(text: string): string {
     "'": "&#039;",
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
-}
-
-/** Escape attribute value */
-function escapeAttr(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 // ============= Exports for Testing =============

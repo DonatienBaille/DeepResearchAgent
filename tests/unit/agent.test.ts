@@ -168,17 +168,17 @@ describe("Agent - Report Generators", () => {
     );
 
     expect(html).toContain("Test Topic");
-    expect(html).toContain("report-item");
-    expect(html).toContain("sources");
-    expect(html).toContain("href=");
+    expect(html).toContain("**Sources :**");
+    expect(html).toContain("[");
+    expect(html).toContain("](");
   });
 
   it("should generate fallback report without sources", () => {
     const html = __testing.generateFallbackReport("Test Topic", []);
 
     expect(html).toContain("Test Topic");
-    expect(html).toContain("report-item");
-    expect(html).toContain("0 relevant sources");
+    expect(html).toContain("**Test Topic**");
+    expect(html).toContain("0 sources pertinentes");
   });
 
   it("should generate error report", () => {
@@ -188,7 +188,7 @@ describe("Agent - Report Generators", () => {
     );
 
     expect(html).toContain("Test Topic");
-    expect(html).toContain("error");
+    expect(html).toContain("Erreur");
     expect(html).toContain("API timeout");
   });
 

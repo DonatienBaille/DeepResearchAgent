@@ -9,6 +9,7 @@
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Deep Research Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       /* ===== CSS Custom Properties ===== */
       :root {
@@ -1244,6 +1245,64 @@
       .report-content h3 {
         margin: 20px 0 10px;
         font-weight: 700;
+      }
+      .report-content ul,
+      .report-content ol {
+        margin: 0 0 12px 20px;
+        padding: 0;
+      }
+      .report-content li {
+        margin-bottom: 6px;
+      }
+      .report-content blockquote {
+        border-left: 3px solid var(--accent);
+        margin: 12px 0;
+        padding: 8px 16px;
+        color: var(--text-secondary);
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-sm);
+      }
+      .report-content code {
+        background: var(--bg-tertiary);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        font-size: 0.85em;
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      }
+      .report-content pre {
+        background: var(--bg-tertiary);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        margin: 12px 0;
+      }
+      .report-content pre code {
+        background: none;
+        padding: 0;
+      }
+      .report-content hr {
+        border: none;
+        border-top: 1px solid var(--border-primary);
+        margin: 20px 0;
+      }
+      .report-content strong {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .report-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+      .report-content th,
+      .report-content td {
+        border: 1px solid var(--border-primary);
+        padding: 8px 12px;
+        text-align: left;
+      }
+      .report-content th {
+        background: var(--bg-tertiary);
+        font-weight: 600;
       }
 
       /* ===== Notification dropdown ===== */
@@ -2813,6 +2872,32 @@
           return div.innerHTML;
         }
 
+        /**
+         * Render Markdown content to HTML using marked.js
+         * Falls back to raw content if marked is not available or content is already HTML
+         */
+        function renderMarkdown(content) {
+          if (!content) return "";
+          // If content already looks like HTML (legacy data), return as-is
+          if (content.trim().startsWith("<") && /<[a-z][\s\S]*>/i.test(content)) {
+            return content;
+          }
+          // Use marked.js if available
+          if (typeof marked !== "undefined" && marked.parse) {
+            try {
+              marked.setOptions({
+                breaks: true,
+                gfm: true,
+              });
+              return marked.parse(content);
+            } catch {
+              return `<pre>${escapeHtml(content)}</pre>`;
+            }
+          }
+          // Fallback: return as preformatted text
+          return `<pre>${escapeHtml(content)}</pre>`;
+        }
+
         function formatDate(isoStr) {
           if (!isoStr) return "—";
           const d = new Date(isoStr);
@@ -2850,7 +2935,10 @@
         function stripHtml(html) {
           const div = document.createElement("div");
           div.innerHTML = html;
-          return div.textContent || "";
+          let text = div.textContent || "";
+          // Also strip common markdown syntax for cleaner excerpts
+          text = text.replace(/#{1,6}\s/g, "").replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/^[-*+]\s/gm, "").replace(/^>\s?/gm, "");
+          return text;
         }
 
         // =============================================
@@ -3328,9 +3416,15 @@
         // =============================================
         async function openReport(id) {
           state.currentReportId = id;
+          state._currentSummaryId = null; // Clear summary context
           const modal = document.getElementById("reportModal");
           document.getElementById("reportModalContent").innerHTML =
             '<div class="loading-center"><div class="spinner" role="status"><span class="sr-only">Chargement…</span></div></div>';
+
+          // Restore report-specific buttons (hidden for summaries)
+          document.getElementById("bookmarkModalBtn").style.display = "";
+          document.getElementById("deleteReportModalBtn").style.display = "";
+
           openModal("reportModal");
 
           try {
@@ -3342,7 +3436,7 @@
             document.getElementById("reportModalDate").textContent =
               formatDateTime(report.created_at);
             document.getElementById("reportModalContent").innerHTML =
-              report.html_content || '<p class="text-muted">Aucun contenu.</p>';
+              renderMarkdown(report.html_content) || '<p class="text-muted">Aucun contenu.</p>';
 
             // Check bookmark status
             try {
@@ -3812,11 +3906,16 @@
                 const topics = JSON.parse(s.topics_covered || "[]");
                 return `
               <div class="card card-hover" style="padding:16px 20px;margin-bottom:12px;cursor:pointer" role="listitem" tabindex="0"
-                   onclick="App.openSummaryModal('${s.id}', this)"
-                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.openSummaryModal('${s.id}', this)}">
+                   onclick="App.openSummaryModal('${s.id}')"
+                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.openSummaryModal('${s.id}')}">
                 <div class="flex items-center justify-between mb-4">
                   <strong>Semaine du ${formatDate(s.week_start)} au ${formatDate(s.week_end)}</strong>
-                  <span class="badge badge-info">${topics.length} topics</span>
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-info">${topics.length} topics</span>
+                    <button class="btn btn-danger btn-icon btn-sm" onclick="event.stopPropagation();App.deleteSummary('${s.id}')" aria-label="Supprimer ce résumé">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
+                  </div>
                 </div>
                 <div class="flex gap-2" style="flex-wrap:wrap">
                   ${topics.map((t) => `<span class="badge badge-neutral">${escapeHtml(t)}</span>`).join("")}
@@ -3833,12 +3932,58 @@
           }
         }
 
-        function openSummaryModal(id, el) {
-          // Find the summary in data and reuse report modal
-          // For now, display the HTML content in the report modal
-          const summaries = state._lastSummaries;
-          // Simplified: just show in modal
-          showToast("Fonctionnalité en développement", "info");
+        async function openSummaryModal(id) {
+          state.currentReportId = null; // Not a report
+          state._currentSummaryId = id;
+
+          // Show loading in modal
+          document.getElementById("reportModalContent").innerHTML =
+            '<div class="loading-center"><div class="spinner" role="status"><span class="sr-only">Chargement…</span></div></div>';
+          document.getElementById("reportModalTitle").textContent = "Résumé";
+          document.getElementById("reportModalTopic").textContent = "";
+          document.getElementById("reportModalDate").textContent = "";
+
+          // Hide bookmark, show delete for summaries
+          document.getElementById("bookmarkModalBtn").style.display = "none";
+          document.getElementById("deleteReportModalBtn").style.display = "";
+
+          openModal("reportModal");
+
+          try {
+            // Fetch full summary from API to ensure html_content is present
+            const summary = await api(`/summaries/${id}`);
+            const topics = JSON.parse(summary.topics_covered || "[]");
+
+            document.getElementById("reportModalTitle").textContent =
+              `Résumé — Semaine du ${formatDate(summary.week_start)} au ${formatDate(summary.week_end)}`;
+            document.getElementById("reportModalTopic").textContent =
+              `${topics.length} topic${topics.length > 1 ? "s" : ""}`;
+            document.getElementById("reportModalDate").textContent =
+              formatDateTime(summary.created_at);
+            document.getElementById("reportModalContent").innerHTML =
+              renderMarkdown(summary.html_content) || '<p class="text-muted">Aucun contenu.</p>';
+          } catch {
+            document.getElementById("reportModalContent").innerHTML =
+              '<p class="text-danger">Impossible de charger le résumé.</p>';
+          }
+        }
+
+        async function deleteSummary(id) {
+          const confirmed = await showConfirm(
+            "Supprimer le résumé",
+            "Êtes-vous sûr de vouloir supprimer ce résumé hebdomadaire ? Cette action est irréversible.",
+          );
+          if (!confirmed) return;
+
+          try {
+            await api(`/summaries/${id}`, { method: "DELETE" });
+            showToast("Résumé supprimé", "success");
+            closeModal("reportModal");
+            state._currentSummaryId = null;
+            loadSummaries();
+          } catch {
+            showToast("Erreur lors de la suppression", "error");
+          }
         }
 
         async function handleGenerateSummary() {
@@ -4228,11 +4373,15 @@
             .getElementById("runPipelineBtn")
             .addEventListener("click", handleRunPipeline);
 
-          // Delete report from modal
+          // Delete report or summary from modal
           document
             .getElementById("deleteReportModalBtn")
             .addEventListener("click", () => {
-              if (state.currentReportId) deleteReport(state.currentReportId);
+              if (state.currentReportId) {
+                deleteReport(state.currentReportId);
+              } else if (state._currentSummaryId) {
+                deleteSummary(state._currentSummaryId);
+              }
             });
 
           // Generate weekly summary
@@ -4259,6 +4408,7 @@
           closeModal,
           handleNotifClick,
           openSummaryModal,
+          deleteSummary,
           handleGenerateSummary,
         };
 
