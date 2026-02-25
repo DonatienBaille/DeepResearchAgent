@@ -1,0 +1,45 @@
+{
+  "name": "deep-research-agent",
+  "version": "1.0.0",
+  "description": "Automated technology research surveillance system with LangGraph, Authentik SSO, and web dashboard",
+  "type": "module",
+  "scripts": {
+    "dev:agent": "bun run src/index.ts",
+    "dev:web": "bun run src/web.ts",
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage",
+    "start": "NODE_ENV=production bun run src/index.ts",
+    "seed": "bun run src/seed.ts"
+  },
+  "dependencies": {
+    "@langchain/community": "^1.1.19",
+    "@langchain/core": "^1.1.28",
+    "@langchain/langgraph": "^1.1.5",
+    "@langchain/openai": "^1.2.10",
+    "bun-types": "^1.3.9",
+    "cookie": "^1.1.1",
+    "hono": "^4.12.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.1",
+    "openid-client": "^6.8.2",
+    "sql.js": "^1.14.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.9",
+    "@types/node": "^25.3.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.11",
+    "@types/sql.js": "^1.4.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "bun": "^1.0.0"
+  }
+}

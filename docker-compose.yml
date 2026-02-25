@@ -1,0 +1,101 @@
+version: "3.8"
+
+services:
+  # Deep Research Agent
+  deep-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deep-research-agent
+    ports:
+      - "3000:3000"
+    environment:
+      # LLM Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+
+      # Search Configuration
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+
+      # Authentik OIDC
+      AUTHENTIK_OIDC_DISCOVERY: ${AUTHENTIK_OIDC_DISCOVERY}
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID}
+      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET}
+      AUTHENTIK_REDIRECT_URI: ${AUTHENTIK_REDIRECT_URI:-http://localhost:3000/auth/callback}
+
+      # Session Configuration
+      SESSION_SECRET: ${SESSION_SECRET}
+
+      # Email Configuration
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:-research-agent@example.com}
+      SMTP_TO: ${SMTP_TO}
+
+      # Cron Configuration
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 9 * * *}
+
+      # Database
+      DATABASE_PATH: /app/data/research.db
+
+      # Server
+      PORT: 3000
+      NODE_ENV: production
+    volumes:
+      - ./sujets.json:/app/sujets.json:ro
+      - deep-agent-data:/app/data
+    restart: unless-stopped
+    networks:
+      - deep-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Optional: Authentik for SSO (uncomment if not using external instance)
+  # authentik:
+  #   image: ghcr.io/goauthentik/server:latest
+  #   container_name: authentik
+  #   ports:
+  #     - "9000:9000"
+  #     - "9443:9443"
+  #   environment:
+  #     AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-your-secret-key}
+  #     AUTHENTIK_POSTGRESQL__HOST: postgres
+  #     AUTHENTIK_POSTGRESQL__NAME: authentik
+  #     AUTHENTIK_POSTGRESQL__USER: authentik
+  #     AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_POSTGRES_PASSWORD:-authentik}
+  #   volumes:
+  #     - ./authentik/media:/media
+  #     - ./authentik/custom-templates:/templates
+  #   depends_on:
+  #     - postgres
+  #   restart: unless-stopped
+  #   networks:
+  #     - deep-network
+  #
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: authentik-postgres
+  #   environment:
+  #     POSTGRES_DB: authentik
+  #     POSTGRES_USER: authentik
+  #     POSTGRES_PASSWORD: ${AUTHENTIK_POSTGRES_PASSWORD:-authentik}
+  #   volumes:
+  #     - authentik-postgres:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - deep-network
+
+volumes:
+  deep-agent-data:
+  # authentik-postgres:
+
+networks:
+  deep-network:
+    driver: bridge
